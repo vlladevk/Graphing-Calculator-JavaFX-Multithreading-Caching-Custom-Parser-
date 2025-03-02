@@ -10,6 +10,8 @@ module org.example.demo {
     requires static lombok;
 
     exports org.example.demo.view;
+
     exports org.example.demo.conroller;
+    exports org.example.demo.model;
     opens org.example.demo.view to javafx.fxml;
 }

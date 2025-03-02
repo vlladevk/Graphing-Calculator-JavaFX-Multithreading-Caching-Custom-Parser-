@@ -1,84 +1,50 @@
 package org.example.demo.view;
 
-import javafx.animation.KeyFrame;
-import javafx.animation.Timeline;
+
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
-import javafx.scene.input.ScrollEvent;
+
 import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
-import javafx.util.Duration;
+
 import lombok.Getter;
-import org.example.demo.parser.*;
+import org.example.demo.model.Point;
+import org.example.demo.conroller.GraphController;
 
 public class GraphView extends Pane {
     @Getter
     private final Canvas canvas;
-    private final Map<Integer, String> formulas = new HashMap<>();
+    private final GraphController graphController;
 
-    private double scale = 30;
-    private double offsetX = 0;
-    private double offsetY = 0;
     double minX;
     double maxX;
     double minY;
     double maxY;
 
 
-    private double lastMouseX;
-    private double lastMouseY;
-    private final Timeline redrawTimeline;
 
     public GraphView(Stage stage) {
         this.canvas = new Canvas(550, 600);
         this.canvas.widthProperty().bind(stage.widthProperty().subtract(250));
         this.canvas.heightProperty().bind(stage.heightProperty());
         getChildren().add(canvas);
+        graphController = new GraphController(this);
 
-        // Настройка таймера для отложенной перерисовки
-        redrawTimeline = new Timeline(new KeyFrame(Duration.millis(5), e -> drawGraph()));
-        redrawTimeline.setCycleCount(1);
+        canvas.widthProperty().addListener((obs, oldVal, newVal) -> graphController.requestRedraw());
+        canvas.heightProperty().addListener((obs, oldVal, newVal) -> graphController.requestRedraw());
 
-        canvas.widthProperty().addListener((obs, oldVal, newVal) -> requestRedraw());
-        canvas.heightProperty().addListener((obs, oldVal, newVal) -> requestRedraw());
-
-        setupMouseControls();
-    }
-
-    private void setupMouseControls() {
-        canvas.setOnMousePressed(event -> {
-            lastMouseX = event.getX();
-            lastMouseY = event.getY();
-            requestRedraw();
-        });
-
-        canvas.setOnMouseDragged(event -> {
-            offsetX += (event.getX() - lastMouseX);
-            offsetY += (event.getY() - lastMouseY);
-            lastMouseX = event.getX();
-            lastMouseY = event.getY();
-            requestRedraw();
-        });
-
-        canvas.setOnScroll((ScrollEvent event) -> {
-            double zoomFactor = event.getDeltaY() > 0 ? 1.1 : 0.9;
-            scale *= zoomFactor;
-            requestRedraw();
-        });
     }
 
     public void setGraph(int index, String value) {
-        formulas.put(index, value);
+        graphController.setGraph(index, value);
     }
 
     public void remove(int index) {
-        formulas.remove(index);
+        graphController.removeGraph(index);
     }
 
 
@@ -88,15 +54,15 @@ public class GraphView extends Pane {
         double height = canvas.getHeight();
         gc.clearRect(0, 0, width, height);
 
-        minX = (-width / 2 - offsetX) / scale;
-        maxX = (width / 2 - offsetX) / scale;
-        minY = (-height / 2 + offsetY) / scale;
-        maxY = (height / 2 + offsetY) / scale;
+        minX = graphController.getMinX();
+        maxX = graphController.getMaxX();
+        minY = graphController.getMinY();
+        maxY = graphController.getMaxY();
 
         double[] possibleSteps = {0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50, 100};
         double step = 1;
         for (double s : possibleSteps) {
-            if (scale * s >= 50) {
+            if (graphController.getScale() * s >= 50) {
                 step = s;
                 break;
             }
@@ -106,28 +72,28 @@ public class GraphView extends Pane {
         gc.setLineWidth(0.5);
 
         for (double x = Math.floor(minX / step) * step; x <= maxX; x += step) {
-            double screenX = x * scale + width / 2 + offsetX;
+            double screenX = x * graphController.getScale() + width / 2 + graphController.getOffsetX();
             gc.strokeLine(screenX, 0, screenX, height);
 
             if (x != 0) { // Убираем дублирующийся 0
-                gc.fillText(String.format("%.1f", x), screenX + 2, height / 2 + offsetY + 12);
+                gc.fillText(String.format("%.1f", x), screenX + 2, height / 2 + graphController.getOffsetY() + 12);
             }
         }
 
         for (double y = Math.floor(minY / step) * step; y <= maxY; y += step) {
-            double screenY = -y * scale + height / 2 + offsetY;
+            double screenY = -y * graphController.getScale() + height / 2 + graphController.getOffsetY();
             gc.strokeLine(0, screenY, width, screenY);
 
             if (y != 0) {
-                gc.fillText(String.format("%.1f", y), width / 2 + offsetX + 5, screenY - 2);
+                gc.fillText(String.format("%.1f", y), width / 2 + graphController.getOffsetX() + 5, screenY - 2);
             }
         }
 
 
         gc.setStroke(Color.web("#888888"));
         gc.setLineWidth(2);
-        double centerX = width / 2 + offsetX;
-        double centerY = height / 2 + offsetY;
+        double centerX = width / 2 + graphController.getOffsetX();
+        double centerY = height / 2 + graphController.getOffsetY();
 
         gc.strokeLine(0, centerY, width, centerY);
         gc.strokeLine(centerX, 0, centerX, height);
@@ -136,11 +102,7 @@ public class GraphView extends Pane {
         gc.fillText("0", centerX + 5, centerY - 5);
     }
 
-    private void requestRedraw() {
-        if (redrawTimeline != null && redrawTimeline.getStatus() != Timeline.Status.RUNNING) {
-            redrawTimeline.play(); // Запуск отложенной перерисовки
-        }
-    }
+
     public void drawGraph() {
         GraphicsContext gc = canvas.getGraphicsContext2D();
         double width = canvas.getWidth();
@@ -149,41 +111,24 @@ public class GraphView extends Pane {
         gc.clearRect(0, 0, width, height);
         drawGrid();
 
-        Color[] colors = {Color.RED, Color.BLUE, Color.GREEN, Color.ORANGE, Color.PURPLE, Color.BROWN};
+        List<List<Point>> points = graphController.calculatePoints();
         gc.setLineWidth(2);
 
+        Color[] colors = {Color.RED, Color.BLUE, Color.GREEN, Color.ORANGE, Color.PURPLE, Color.BROWN};
         int i = 0;
-        for (Map.Entry<Integer, String> entry : formulas.entrySet()) {
-            String expression = entry.getValue();
-            LexemeParser lexemeParser = new LexemeParser();
-            List<Lexeme> lexemes = lexemeParser.parse(expression);
-            ExpressionParser expressionParser = new ExpressionParser(lexemes);
-            Expression parsedExpression = expressionParser.parse();
 
+        for (List<Point> formulaPoints : points) {
             gc.setStroke(colors[i % colors.length]);
             gc.beginPath();
-
             boolean first = true;
-
-            double step = (maxX - minX) / (width * 2) * 0.1;
-
-            for (double x = minX; x <= maxX; x += step) {
-                try {
-                    double y = parsedExpression.evaluate(Map.of("x", x));
-
-                    double screenX = x * scale + width / 2 + offsetX;
-                    double screenY = -y * scale + height / 2 + offsetY;
-                    if (first) {
-                        gc.moveTo(screenX, screenY);
-                        first = false;
-                    } else {
-                        gc.lineTo(screenX, screenY);
-                    }
-                } catch (Exception ignored) {
-
+            for (Point point : formulaPoints) {
+                if (first) {
+                    gc.moveTo(point.getX(), point.getY());
+                    first = false;
+                } else {
+                    gc.lineTo(point.getX(), point.getY());
                 }
             }
-
             gc.stroke();
             i++;
         }
