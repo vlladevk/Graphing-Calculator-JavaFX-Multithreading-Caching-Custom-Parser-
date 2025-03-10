@@ -79,10 +79,10 @@ public class GraphView extends Pane {
 
             if (x != 0) {
                 String label;
-                if (Math.abs(x) < 0.01 || Math.abs(x) > 10000) {
+                if (Math.abs(x) > 100000) {
                     label = String.format("%.1e", x);
                 } else {
-                    label = String.format("%.1f", x);
+                    label = String.format("%.3f", x);
                 }
                 gc.fillText(label, screenX + 2, height / 2 + graphController.getOffsetY() + 12);
 
@@ -94,12 +94,13 @@ public class GraphView extends Pane {
             gc.strokeLine(0, screenY, width, screenY);
             if (y != 0) {
                 String label;
-                if (Math.abs(y) < 0.01 || Math.abs(y) > 10000) {
+                if (Math.abs(y) > 100000) {
                     label = String.format("%.1e", y);
                 } else {
-                    label = String.format("%.1f", y);
+                    label = String.format("%.3f", y);
                 }
-                gc.fillText(label, width / 2 + graphController.getOffsetX() + 5, screenY - 2);            }
+                gc.fillText(label, width / 2 + graphController.getOffsetX() + 5, screenY - 2);
+            }
         }
 
         gc.setStroke(Color.web("#888888"));
@@ -147,7 +148,7 @@ public class GraphView extends Pane {
                 }
             }
             gc.stroke();
-            i++;
+            ++i;
         }
     }
 

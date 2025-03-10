@@ -34,6 +34,10 @@ public class GraphController {
     private double lastMouseY;
     private final Timeline redrawTimeline;
 
+    private static final double MIN_SCALE = 0.05;
+    private static final double MAX_SCALE = 100000;
+
+
     public GraphController(GraphView graphView) {
         this.graphView = graphView;
         redrawTimeline = new Timeline(new KeyFrame(Duration.millis(5), e -> graphView.drawGraph()));
@@ -56,20 +60,23 @@ public class GraphController {
             requestRedraw();
         });
 
+
         graphView.getCanvas().setOnScroll((ScrollEvent event) -> {
             double zoomFactor = event.getDeltaY() > 0 ? 1.1 : 0.9;
-            double newScale = scale * zoomFactor;
+            double targetScale = scale * zoomFactor;
+            double newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, targetScale));
 
             double mouseX = event.getX();
             double mouseY = event.getY();
 
-            double graphX = (mouseX - graphView.getCanvas().getWidth() / 2 - offsetX) / scale;
-            double graphY = (mouseY - graphView.getCanvas().getHeight() / 2 - offsetY) / scale;
-
-            offsetX += graphX * (scale - newScale);
-            offsetY += graphY * (scale - newScale);
+            double graphXBefore = (mouseX - graphView.getCanvas().getWidth() / 2 - offsetX) / scale;
+            double graphYBefore = (mouseY - graphView.getCanvas().getHeight() / 2 - offsetY) / scale;
 
             scale = newScale;
+
+            offsetX = mouseX - graphView.getCanvas().getWidth() / 2 - graphXBefore * scale;
+            offsetY = mouseY - graphView.getCanvas().getHeight() / 2 - graphYBefore * scale;
+
             requestRedraw();
         });
     }
@@ -114,28 +121,32 @@ public class GraphController {
     }
 
     private void calculateRawPoints() throws ExecutionException, InterruptedException {
-        double bufferFactor = 1.2;
-        double minX = getMinX() * bufferFactor;
-        double maxX = getMaxX() * bufferFactor;
+        double bufferFactor = 0.3;
+        double minX = getMinX();
+        double maxX = getMaxX();
+        double delta = maxX - minX;
+        double extra = delta * (bufferFactor) / 2;
+        double adjustedMinX = minX - extra;
+        double adjustedMaxX = maxX + extra;
+
         double step = (maxX - minX) / graphView.getCanvas().getWidth();
+        double adjustedStep = step * (1 - bufferFactor);
 
         List<CalculateFunction> functions = new ArrayList<>();
         List<Integer> missingIndexes = new ArrayList<>();
 
         for (Map.Entry<Integer, String> entry : formulas.entrySet()) {
             int index = entry.getKey();
-
             if (!cachedPoints.containsKey(index) || cachedPoints.get(index).isEmpty()) {
-                functions.add(new CalculateFunction(entry.getValue(), step, minX, maxX));
+                functions.add(new CalculateFunction(entry.getValue(), adjustedStep, adjustedMinX, adjustedMaxX));
                 missingIndexes.add(index);
             } else {
                 List<Point> existingPoints = cachedPoints.get(index);
                 double cachedMinX = existingPoints.getFirst().getX();
                 double cachedMaxX = existingPoints.getLast().getX();
                 double cachedStep = cachedSteps.getOrDefault(index, step);
-
-                if (minX < cachedMinX || maxX > cachedMaxX || step < cachedStep) {
-                    functions.add(new CalculateFunction(entry.getValue(), step, minX, maxX));
+                if (minX < cachedMinX || maxX > cachedMaxX || step < cachedStep ) {
+                    functions.add(new CalculateFunction(entry.getValue(), adjustedStep, adjustedMinX, adjustedMaxX));
                     missingIndexes.add(index);
                 }
             }
@@ -146,7 +157,7 @@ public class GraphController {
             List<Point> points = futures.get(i).get();
             int index = missingIndexes.get(i);
             cachedPoints.put(index, points);
-            cachedSteps.put(index, step);
+            cachedSteps.put(index, adjustedStep);
         }
     }
 
