@@ -27,7 +27,6 @@ public class GraphController {
     @Getter
     private double offsetY = 0;
 
-    private final double bufferFactor = 1.2;
     private final Map<Integer, List<Point>> cachedPoints = new HashMap<>();
     private final Map<Integer, Double> cachedSteps = new HashMap<>();
 
@@ -115,6 +114,7 @@ public class GraphController {
     }
 
     private void calculateRawPoints() throws ExecutionException, InterruptedException {
+        double bufferFactor = 1.2;
         double minX = getMinX() * bufferFactor;
         double maxX = getMaxX() * bufferFactor;
         double step = (maxX - minX) / graphView.getCanvas().getWidth();
