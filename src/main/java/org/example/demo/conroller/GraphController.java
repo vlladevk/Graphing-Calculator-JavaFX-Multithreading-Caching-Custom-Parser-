@@ -3,32 +3,32 @@ package org.example.demo.conroller;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.scene.input.ScrollEvent;
-import javafx.scene.paint.Color;
 import javafx.util.Duration;
 import lombok.Getter;
 
 import org.example.demo.model.Point;
-import org.example.demo.parser.Expression;
-import org.example.demo.parser.ExpressionParser;
-import org.example.demo.parser.Lexeme;
-import org.example.demo.parser.LexemeParser;
+
 import org.example.demo.view.GraphView;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+
 
 public class GraphController {
     private final GraphView graphView;
+    private final ExecutorService executor = Executors.newCachedThreadPool();
 
-    private final Map<Integer, String> formulas = new HashMap<>();
+    private final Map<Integer, String> formulas = new TreeMap<>();
     @Getter
     private double scale = 30;
     @Getter
     private double offsetX = 0;
     @Getter
     private double offsetY = 0;
+
 
 
     private double lastMouseX;
@@ -97,41 +97,25 @@ public class GraphController {
         return  (height / 2 + offsetY) / scale;
     }
 
-    public List<List<Point>> calculatePoints() {
-        List<List<Point>> points = new ArrayList<>();
-        int i = 0;
-
+    public List<List<Point>> calculatePoints() throws InterruptedException, ExecutionException {
+        double step = (getMaxX() - getMinX()) / (graphView.getCanvas().getWidth());
+        List<CalculateFunction> functions = new ArrayList<>();
+        System.out.println(step);
+        double width = graphView.getCanvas().getWidth();
+        double height = graphView.getCanvas().getHeight();
         for (Map.Entry<Integer, String> entry : formulas.entrySet()) {
-            String expression = entry.getValue();
-            LexemeParser lexemeParser = new LexemeParser();
-            List<Lexeme> lexemes = lexemeParser.parse(expression);
-            ExpressionParser expressionParser = new ExpressionParser(lexemes);
-            Expression parsedExpression;
-            try {
-                parsedExpression = expressionParser.parse();
-            } catch (Exception e) {
-                continue;
-            }
-            List<Point> formulaPoints = new ArrayList<>();
-            double step = (getMaxX() - getMinX()) / (graphView.getCanvas().getWidth() * 2) * 0.1;
-
-            for (double x = getMinX(); x <= getMaxX(); x += step) {
-                try {
-                    double y = parsedExpression.evaluate(Map.of("x", x));
-
-                    double screenX = x * scale + graphView.getCanvas().getWidth() / 2 + offsetX;
-                    double screenY = -y * scale + graphView.getCanvas().getHeight() / 2 + offsetY;
-
-                    formulaPoints.add(new Point(screenX, screenY));
-                } catch (RuntimeException ignored) {
-
-                }
-
-            }
-            points.add(formulaPoints);
-            i++;
+            CalculateFunction calculateFunction = new CalculateFunction(
+                    entry.getValue(), step, getMinX(),
+                    getMaxX(), scale, width, height, offsetX, offsetY);
+            functions.add(calculateFunction);
         }
-        return points;
+        List<Future<List<Point>>> points = executor.invokeAll(functions);
+        List<List<Point>> result = new ArrayList<>();
+        for (Future<List<Point>> future : points) {
+            result.add(future.get());
+
+        }
+        return result;
     }
 
 }

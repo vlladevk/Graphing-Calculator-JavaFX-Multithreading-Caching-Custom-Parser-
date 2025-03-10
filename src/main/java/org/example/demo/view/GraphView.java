@@ -9,6 +9,7 @@ import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 
 
 import lombok.Getter;
@@ -75,7 +76,7 @@ public class GraphView extends Pane {
             double screenX = x * graphController.getScale() + width / 2 + graphController.getOffsetX();
             gc.strokeLine(screenX, 0, screenX, height);
 
-            if (x != 0) { // Убираем дублирующийся 0
+            if (x != 0) {
                 gc.fillText(String.format("%.1f", x), screenX + 2, height / 2 + graphController.getOffsetY() + 12);
             }
         }
@@ -111,7 +112,12 @@ public class GraphView extends Pane {
         gc.clearRect(0, 0, width, height);
         drawGrid();
 
-        List<List<Point>> points = graphController.calculatePoints();
+        List<List<Point>> points;
+        try {
+            points = graphController.calculatePoints();
+        } catch (InterruptedException | ExecutionException e) {
+            throw new RuntimeException(e);
+        }
         gc.setLineWidth(2);
 
         Color[] colors = {Color.RED, Color.BLUE, Color.GREEN, Color.ORANGE, Color.PURPLE, Color.BROWN};
