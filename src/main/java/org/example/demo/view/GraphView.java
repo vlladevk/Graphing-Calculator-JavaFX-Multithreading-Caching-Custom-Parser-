@@ -60,36 +60,47 @@ public class GraphView extends Pane {
         minY = graphController.getMinY();
         maxY = graphController.getMaxY();
 
-        double[] possibleSteps = {0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50, 100};
-        double step = 1;
-        for (double s : possibleSteps) {
-            if (graphController.getScale() * s >= 50) {
-                step = s;
-                break;
-            }
+        double rawStep = Math.pow(10, Math.floor(Math.log10(1 / graphController.getScale() * 100)));
+
+        double minSpacing = 60;
+
+        double step = rawStep;
+        while ((step * graphController.getScale()) < minSpacing) {
+            step *= 2;
         }
 
         gc.setStroke(Color.web("#DADADA"));
         gc.setLineWidth(0.5);
+
 
         for (double x = Math.floor(minX / step) * step; x <= maxX; x += step) {
             double screenX = x * graphController.getScale() + width / 2 + graphController.getOffsetX();
             gc.strokeLine(screenX, 0, screenX, height);
 
             if (x != 0) {
-                gc.fillText(String.format("%.1f", x), screenX + 2, height / 2 + graphController.getOffsetY() + 12);
+                String label;
+                if (Math.abs(x) < 0.01 || Math.abs(x) > 10000) {
+                    label = String.format("%.1e", x);
+                } else {
+                    label = String.format("%.1f", x);
+                }
+                gc.fillText(label, screenX + 2, height / 2 + graphController.getOffsetY() + 12);
+
             }
         }
 
         for (double y = Math.floor(minY / step) * step; y <= maxY; y += step) {
             double screenY = -y * graphController.getScale() + height / 2 + graphController.getOffsetY();
             gc.strokeLine(0, screenY, width, screenY);
-
             if (y != 0) {
-                gc.fillText(String.format("%.1f", y), width / 2 + graphController.getOffsetX() + 5, screenY - 2);
-            }
+                String label;
+                if (Math.abs(y) < 0.01 || Math.abs(y) > 10000) {
+                    label = String.format("%.1e", y);
+                } else {
+                    label = String.format("%.1f", y);
+                }
+                gc.fillText(label, width / 2 + graphController.getOffsetX() + 5, screenY - 2);            }
         }
-
 
         gc.setStroke(Color.web("#888888"));
         gc.setLineWidth(2);

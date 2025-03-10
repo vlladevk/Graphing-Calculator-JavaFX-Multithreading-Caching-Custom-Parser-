@@ -18,34 +18,23 @@ public class CalculateFunction implements Callable<List<Point>> {
     private final double step;
     private final double minValue;
     private final double maxValue;
-    private final double scale;
-    private final double width;
-    private final double height;
-    private final double offsetX;
-    private final double offsetY;
 
     @Override
     public List<Point> call() {
-        LexemeParser lexemeParser = new LexemeParser();
-        List<Lexeme> lexemes = lexemeParser.parse(formula);
-        ExpressionParser syntaxParser;
-        Expression expression;
         try {
-            syntaxParser = new ExpressionParser(lexemes);
-            expression = syntaxParser.parse();
+            LexemeParser lexemeParser = new LexemeParser();
+            List<Lexeme> lexemes = lexemeParser.parse(formula);
+            ExpressionParser syntaxParser = new ExpressionParser(lexemes);
+            Expression expression = syntaxParser.parse();
+            List<Point> points = new ArrayList<>();
+            for (double x = minValue; x <= maxValue; x += step) {
+                double y = expression.evaluate(Map.of("x", x));
+                points.add(new Point(x, y));
+            }
+            return points;
         } catch (Exception e) {
             return List.of();
         }
 
-        List<Point> points = new ArrayList<>();
-        for (double x = minValue; x <= maxValue; x += step) {
-            double y = expression.evaluate(Map.of("x", x));
-            double screenX = x * scale + width / 2 + offsetX;
-            double screenY = -y * scale + height / 2 + offsetY;
-            Point point = new Point(screenX, screenY);
-            points.add(point);
-        }
-
-        return points;
     }
 }
