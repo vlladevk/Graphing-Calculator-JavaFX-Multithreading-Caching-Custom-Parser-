@@ -35,8 +35,8 @@ public class GraphView extends Pane {
         getChildren().add(canvas);
         graphController = new GraphController(this);
 
-        canvas.widthProperty().addListener((obs, oldVal, newVal) -> graphController.requestRedraw());
-        canvas.heightProperty().addListener((obs, oldVal, newVal) -> graphController.requestRedraw());
+        canvas.widthProperty().addListener((obs, oldVal, newVal) -> graphController.redraw());
+        canvas.heightProperty().addListener((obs, oldVal, newVal) -> graphController.redraw());
 
     }
 

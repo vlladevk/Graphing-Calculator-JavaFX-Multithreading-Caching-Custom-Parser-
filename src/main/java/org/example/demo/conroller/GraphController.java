@@ -1,9 +1,6 @@
 package org.example.demo.conroller;
 
-import javafx.animation.KeyFrame;
-import javafx.animation.Timeline;
 import javafx.scene.input.ScrollEvent;
-import javafx.util.Duration;
 import lombok.Getter;
 import org.example.demo.model.Point;
 import org.example.demo.view.GraphView;
@@ -32,7 +29,7 @@ public class GraphController {
 
     private double lastMouseX;
     private double lastMouseY;
-    private final Timeline redrawTimeline;
+
 
     private static final double MIN_SCALE = 0.05;
     private static final double MAX_SCALE = 100000;
@@ -40,8 +37,6 @@ public class GraphController {
 
     public GraphController(GraphView graphView) {
         this.graphView = graphView;
-        redrawTimeline = new Timeline(new KeyFrame(Duration.millis(5), e -> graphView.drawGraph()));
-        redrawTimeline.setCycleCount(1);
         setupMouseControls();
     }
 
@@ -49,7 +44,7 @@ public class GraphController {
         graphView.getCanvas().setOnMousePressed(event -> {
             lastMouseX = event.getX();
             lastMouseY = event.getY();
-            requestRedraw();
+            redraw();
         });
 
         graphView.getCanvas().setOnMouseDragged(event -> {
@@ -57,7 +52,7 @@ public class GraphController {
             offsetY += (event.getY() - lastMouseY);
             lastMouseX = event.getX();
             lastMouseY = event.getY();
-            requestRedraw();
+            redraw();
         });
 
 
@@ -77,14 +72,12 @@ public class GraphController {
             offsetX = mouseX - graphView.getCanvas().getWidth() / 2 - graphXBefore * scale;
             offsetY = mouseY - graphView.getCanvas().getHeight() / 2 - graphYBefore * scale;
 
-            requestRedraw();
+            redraw();
         });
     }
 
-    public void requestRedraw() {
-        if (redrawTimeline != null && redrawTimeline.getStatus() != Timeline.Status.RUNNING) {
-            redrawTimeline.play();
-        }
+    public void redraw() {
+        graphView.drawGraph();
     }
 
     public void setGraph(int index, String value) {
@@ -97,7 +90,7 @@ public class GraphController {
         formulas.remove(index);
         cachedPoints.remove(index);
         cachedSteps.remove(index);
-        requestRedraw();
+        redraw();
     }
 
     public double getMinX() {
